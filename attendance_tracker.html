@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attendance – Spyon CCTV Shop</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --surface2: #21262d;
+  --border: #30363d;
+  --accent: #238636;
+  --accent-hover: #2ea043;
+  --blue: #1f6feb;
+  --red: #da3633;
+  --yellow: #d29922;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --font: 'Outfit', sans-serif;
+  --radius: 12px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(35,134,54,0.12), transparent);
+  pointer-events:none; z-index:0;
+}
+
+.app { position:relative; z-index:1; max-width:520px; margin:0 auto; padding:28px 16px 80px; }
+
+/* Header */
+.header { text-align:center; margin-bottom:32px; }
+.shop-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:var(--surface); border:1px solid var(--border);
+  padding:6px 16px; border-radius:20px; font-size:12px;
+  color:var(--muted); margin-bottom:16px; font-weight:500;
+}
+.shop-badge span { color:var(--accent); }
+.header h1 {
+  font-size:32px; font-weight:900; letter-spacing:-1px;
+  background: linear-gradient(135deg, #e6edf3 0%, #7d8590 100%);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+}
+.header p { color:var(--muted); font-size:14px; margin-top:6px; }
+
+/* Date/time bar */
+.datetime-bar {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); padding:14px 20px;
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:20px;
+}
+.datetime-bar .date { font-size:14px; font-weight:600; }
+.datetime-bar .time { font-size:22px; font-weight:800; font-variant-numeric:tabular-nums; color:#58a6ff; }
+
+/* Staff card */
+.card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:24px; margin-bottom:16px;
+}
+.card-label { font-size:11px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }
+
+/* Select */
+select {
+  width:100%; background:var(--surface2); border:1.5px solid var(--border);
+  border-radius:10px; padding:13px 16px; color:var(--text);
+  font-family:var(--font); font-size:15px; font-weight:500;
+  outline:none; cursor:pointer; transition:border-color 0.2s;
+  appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%237d8590' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 16px center;
+}
+select:focus { border-color:#58a6ff; }
+select option { background:var(--surface2); }
+
+/* Location status */
+.location-status {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 16px; border-radius:10px; margin-top:14px;
+  font-size:13px; font-weight:500; transition:all 0.3s;
+}
+.location-status.checking { background:rgba(125,133,144,0.1); color:var(--muted); border:1px solid var(--border); }
+.location-status.ok       { background:rgba(35,134,54,0.1);  color:#3fb950; border:1px solid rgba(35,134,54,0.3); }
+.location-status.far      { background:rgba(218,54,51,0.1);  color:#f85149; border:1px solid rgba(218,54,51,0.3); }
+.location-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.checking .location-dot { background:var(--muted); animation:pulse 1.5s infinite; }
+.ok .location-dot  { background:#3fb950; }
+.far .location-dot { background:#f85149; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Big attendance button */
+.attend-btn {
+  width:100%; padding:20px; border-radius:14px;
+  font-family:var(--font); font-size:18px; font-weight:800;
+  cursor:pointer; border:none; transition:all 0.2s;
+  letter-spacing:0.3px; margin-top:16px;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+}
+.attend-btn.present {
+  background: linear-gradient(135deg, #238636, #2ea043);
+  color:#fff;
+  box-shadow: 0 4px 24px rgba(35,134,54,0.3);
+}
+.attend-btn.present:hover { transform:translateY(-2px); box-shadow:0 8px 32px rgba(35,134,54,0.4); }
+.attend-btn.present:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+.attend-btn.already {
+  background:var(--surface2); color:var(--muted);
+  border:1.5px solid var(--border); cursor:not-allowed;
+}
+
+/* Status card after marking */
+.marked-card {
+  background: linear-gradient(135deg, rgba(35,134,54,0.1), rgba(35,134,54,0.05));
+  border:1px solid rgba(35,134,54,0.3);
+  border-radius:16px; padding:24px; text-align:center; margin-top:16px;
+  display:none;
+}
+.marked-card .big-check { font-size:48px; margin-bottom:12px; }
+.marked-card h3 { font-size:20px; font-weight:800; color:#3fb950; }
+.marked-card p { color:var(--muted); font-size:13px; margin-top:6px; }
+.late-badge {
+  display:inline-block; background:rgba(210,153,34,0.15);
+  color:#e3b341; border:1px solid rgba(210,153,34,0.3);
+  padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;
+  margin-top:10px;
+}
+.ontime-badge {
+  display:inline-block; background:rgba(35,134,54,0.15);
+  color:#3fb950; border:1px solid rgba(35,134,54,0.3);
+  padding:4px 12px; border-radius:20px; font-size:12px; font-weight:700;
+  margin-top:10px;
+}
+
+/* ── ADMIN ── */
+.admin-wrap { display:none; }
+
+.stats-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+.stat {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:14px; padding:16px; text-align:center;
+}
+.stat-num { font-size:28px; font-weight:900; }
+.stat-lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:0.8px; }
+.stat.present-stat .stat-num { color:#3fb950; }
+.stat.late-stat .stat-num    { color:#e3b341; }
+.stat.absent-stat .stat-num  { color:#f85149; }
+
+.filter-bar { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+.filter-bar input, .filter-bar select {
+  flex:1; min-width:120px; padding:9px 14px; font-size:13px;
+}
+
+.att-table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; font-size:13px; }
+th {
+  text-align:left; padding:10px 12px;
+  font-size:10px; font-weight:700; color:var(--muted);
+  text-transform:uppercase; letter-spacing:1px;
+  border-bottom:1px solid var(--border); background:var(--surface2);
+}
+td { padding:13px 12px; border-bottom:1px solid rgba(48,54,61,0.5); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.02); }
+
+.badge {
+  display:inline-flex; align-items:center; gap:4px;
+  padding:3px 10px; border-radius:20px;
+  font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px;
+}
+.badge-present { background:rgba(35,134,54,0.15);  color:#3fb950; border:1px solid rgba(35,134,54,0.3); }
+.badge-late    { background:rgba(210,153,34,0.15); color:#e3b341; border:1px solid rgba(210,153,34,0.3); }
+.badge-absent  { background:rgba(218,54,51,0.15);  color:#f85149; border:1px solid rgba(218,54,51,0.3); }
+
+/* Admin header */
+.admin-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:20px; flex-wrap:wrap; gap:12px;
+}
+.admin-header h2 { font-size:20px; font-weight:800; }
+.btn-sm {
+  padding:8px 16px; border-radius:8px; font-family:var(--font);
+  font-size:12px; font-weight:700; cursor:pointer; border:none;
+  background:var(--surface2); color:var(--text);
+  border:1px solid var(--border); transition:all 0.2s;
+}
+.btn-sm:hover { background:var(--border); }
+
+/* Toast */
+#toast {
+  position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:12px; padding:12px 20px;
+  font-size:13px; font-weight:500; white-space:nowrap;
+  opacity:0; transition:all 0.3s; pointer-events:none; z-index:999;
+  box-shadow:0 8px 32px rgba(0,0,0,0.3);
+}
+#toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+#toast.success { border-color:var(--accent); }
+#toast.error   { border-color:var(--red); }
+
+.spinner {
+  display:inline-block; width:14px; height:14px;
+  border:2px solid rgba(255,255,255,0.2); border-top-color:#fff;
+  border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+/* Admin lock */
+#admin-lock {
+  position:fixed; bottom:24px; right:20px;
+  width:44px; height:44px; border-radius:12px;
+  background:var(--surface); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center;
+  font-size:20px; cursor:pointer; z-index:100;
+  box-shadow:0 4px 16px rgba(0,0,0,0.3);
+  transition:all 0.2s;
+}
+#admin-lock:hover { background:var(--surface2); transform:scale(1.05); }
+
+.empty-state { text-align:center; padding:48px 20px; color:var(--muted); }
+.empty-state .icon { font-size:40px; margin-bottom:12px; }
+
+@media(max-width:480px) {
+  .stats-grid { grid-template-columns:1fr 1fr 1fr; }
+  .header h1 { font-size:26px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── STAFF VIEW ── -->
+  <div id="staff-view">
+    <div class="header">
+      <div class="shop-badge">📍 <span>Spyon</span> CCTV Shop</div>
+      <h1>Attendance</h1>
+      <p>Mark your attendance for today</p>
+    </div>
+
+    <div class="datetime-bar">
+      <div class="date" id="today-date">—</div>
+      <div class="time" id="live-time">—</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Select Your Name</div>
+      <select id="staff-name" onchange="onNameSelect()">
+        <option value="">— Choose your name —</option>
+        <option value="Akhtar">Akhtar</option>
+        <option value="Rohit">Rohit</option>
+        <option value="Shahid">Shahid</option>
+        <option value="Aziz">Aziz</option>
+        <option value="Lucky">Lucky</option>
+        <option value="Sonu">Sonu</option>
+        <option value="Arjun">Arjun</option>
+      </select>
+
+      <div class="location-status checking" id="loc-status">
+        <div class="location-dot"></div>
+        <span id="loc-text">Detecting your location...</span>
+      </div>
+    </div>
+
+    <div id="attend-section" style="display:none;">
+      <button class="attend-btn present" id="attend-btn" onclick="markAttendance()">
+        ✅ Mark Present
+      </button>
+    </div>
+
+    <div class="marked-card" id="marked-card">
+      <div class="big-check">🎉</div>
+      <h3 id="marked-name">Attendance Marked!</h3>
+      <p id="marked-time">—</p>
+      <div id="marked-badge"></div>
+    </div>
+  </div>
+
+  <!-- ── ADMIN VIEW ── -->
+  <div class="admin-wrap" id="admin-view">
+    <div class="admin-header">
+      <div>
+        <h2>📊 Attendance Panel</h2>
+        <p style="color:var(--muted);font-size:13px;margin-top:2px;">Spyon CCTV Shop</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" onclick="loadAttendance()">↻ Refresh</button>
+        <button class="btn-sm" onclick="switchToStaff()">✕ Close</button>
+      </div>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat present-stat"><div class="stat-num" id="s-present">—</div><div class="stat-lbl">Present</div></div>
+      <div class="stat late-stat"><div class="stat-num" id="s-late">—</div><div class="stat-lbl">Late</div></div>
+      <div class="stat absent-stat"><div class="stat-num" id="s-absent">—</div><div class="stat-lbl">Absent</div></div>
+    </div>
+
+    <div class="card">
+      <div class="filter-bar">
+        <input type="date" id="filter-date" onchange="loadAttendance()">
+        <select id="filter-name" onchange="loadAttendance()">
+          <option value="">All Staff</option>
+          <option>Akhtar</option><option>Rohit</option><option>Shahid</option>
+          <option>Aziz</option><option>Lucky</option><option>Sonu</option><option>Arjun</option>
+        </select>
+      </div>
+      <div class="att-table-wrap" id="att-table">
+        <div class="empty-state"><div class="icon">📭</div><p>No records found.</p></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Admin lock button -->
+<div id="admin-lock" onclick="askAdminPassword()" title="Admin Panel">🔒</div>
+
+<div id="toast"><span id="toast-msg"></span></div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQpQpkOj6TEmRmlL08Ck01XG9_GX2MmBovmBM70_i1WGfEB2B2i9IjB1Ycpf5Xc8r9cQ/exec';
+const SHOP_LAT   = 28.657040;
+const SHOP_LNG   = 77.235809;
+const MAX_DIST   = 200; // metres radius allowed
+const LATE_HOUR  = 11;  // 11:00 AM
+const LATE_MIN   = 0;
+const ADMIN_PASS = '1234';
+
+const STAFF_PHONES = {
+  'Akhtar': '919711060636',
+  'Rohit':  '917065818114',
+  'Shahid': '919582605112',
+  'Aziz':   '918447865709',
+  'Lucky':  '919555963453',
+  'Sonu':   '918810315793',
+  'Arjun':  '919315837810',
+};
+
+// ── CLOCK ────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  document.getElementById('live-time').textContent =
+    now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', second:'2-digit', hour12:true });
+  document.getElementById('today-date').textContent =
+    now.toLocaleDateString('en-IN', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Set default filter date to today
+document.addEventListener('DOMContentLoaded', function() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('filter-date').value = today;
+  if (sessionStorage.getItem('adminAuth') === 'true') {
+    document.getElementById('admin-lock').textContent = '⚙️';
+  }
+  // Start location detection
+  detectLocation();
+});
+
+// ── LOCATION ─────────────────────────────────────────────────────────────
+let userLat = null, userLng = null, locationOk = false;
+
+function detectLocation() {
+  if (!navigator.geolocation) {
+    setLocStatus('far', '⚠️ Location not supported on this device');
+    return;
+  }
+  setLocStatus('checking', 'Detecting your location...');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      const dist = getDistance(userLat, userLng, SHOP_LAT, SHOP_LNG);
+      if (dist <= MAX_DIST) {
+        locationOk = true;
+        setLocStatus('ok', `✅ You're at the shop (${Math.round(dist)}m away)`);
+      } else {
+        locationOk = false;
+        setLocStatus('far', `❌ You're too far from shop (${Math.round(dist)}m away)`);
+      }
+      updateAttendBtn();
+    },
+    err => {
+      setLocStatus('far', '⚠️ Could not get location. Please allow location access.');
+      locationOk = false;
+      updateAttendBtn();
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
+function setLocStatus(cls, msg) {
+  const el = document.getElementById('loc-status');
+  el.className = 'location-status ' + cls;
+  document.getElementById('loc-text').textContent = msg;
+}
+
+function getDistance(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── NAME SELECT ───────────────────────────────────────────────────────────
+function onNameSelect() {
+  const name = document.getElementById('staff-name').value;
+  if (!name) {
+    document.getElementById('attend-section').style.display = 'none';
+    document.getElementById('marked-card').style.display = 'none';
+    return;
+  }
+  // Check if already marked today
+  const key = `att_${name}_${getTodayKey()}`;
+  const existing = localStorage.getItem(key);
+  if (existing) {
+    const data = JSON.parse(existing);
+    showMarkedCard(name, data.time, data.isLate);
+    document.getElementById('attend-section').style.display = 'none';
+    return;
+  }
+  document.getElementById('marked-card').style.display = 'none';
+  document.getElementById('attend-section').style.display = '';
+  updateAttendBtn();
+}
+
+function updateAttendBtn() {
+  const btn = document.getElementById('attend-btn');
+  if (!locationOk) {
+    btn.disabled = true;
+    btn.innerHTML = '📍 Not at Shop Location';
+    btn.className = 'attend-btn already';
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = '✅ Mark Present';
+    btn.className = 'attend-btn present';
+  }
+}
+
+// ── MARK ATTENDANCE ───────────────────────────────────────────────────────
+async function markAttendance() {
+  const name = document.getElementById('staff-name').value;
+  if (!name) { toast('Please select your name first.', 'error'); return; }
+  if (!locationOk) { toast('You must be at the shop to mark attendance.', 'error'); return; }
+
+  const btn = document.getElementById('attend-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Marking...';
+
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit', hour12:true });
+  const dateStr = now.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const isLate = (now.getHours() > LATE_HOUR) || (now.getHours() === LATE_HOUR && now.getMinutes() > LATE_MIN);
+  const status = isLate ? 'Late' : 'Present';
+
+  const row = [now.toISOString(), dateStr, name, timeStr, status, `${userLat},${userLng}`];
+
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ action: 'append', row })
+    });
+
+    // Save locally so they can't mark twice
+    localStorage.setItem(`att_${name}_${getTodayKey()}`, JSON.stringify({ time: timeStr, isLate }));
+
+    document.getElementById('attend-section').style.display = 'none';
+    showMarkedCard(name, timeStr, isLate);
+    toast(`Attendance marked! ${isLate ? '⚠️ Marked as Late' : '✅ On Time'}`, 'success');
+
+  } catch(e) {
+    toast('Error saving. Try again.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = '✅ Mark Present';
+  }
+}
+
+function showMarkedCard(name, timeStr, isLate) {
+  const card = document.getElementById('marked-card');
+  document.getElementById('marked-name').textContent = `${name} — Attendance Marked!`;
+  document.getElementById('marked-time').textContent = `Marked at ${timeStr} today`;
+  document.getElementById('marked-badge').innerHTML = isLate
+    ? `<span class="late-badge">⚠️ Marked Late</span>`
+    : `<span class="ontime-badge">✅ On Time</span>`;
+  card.style.display = '';
+}
+
+function getTodayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// ── ADMIN ─────────────────────────────────────────────────────────────────
+const ADMIN_PASS_VAL = '1234';
+
+function askAdminPassword() {
+  if (sessionStorage.getItem('adminAuth') === 'true') {
+    showAdmin(); return;
+  }
+  const entered = prompt('Enter Admin Password:');
+  if (entered === null) return;
+  if (entered === ADMIN_PASS_VAL) {
+    sessionStorage.setItem('adminAuth', 'true');
+    document.getElementById('admin-lock').textContent = '⚙️';
+    showAdmin();
+  } else {
+    alert('Wrong password.');
+  }
+}
+
+function showAdmin() {
+  document.getElementById('staff-view').style.display = 'none';
+  document.getElementById('admin-view').style.display = '';
+  loadAttendance();
+}
+
+function switchToStaff() {
+  document.getElementById('admin-view').style.display = 'none';
+  document.getElementById('staff-view').style.display = '';
+}
+
+async function loadAttendance() {
+  document.getElementById('att-table').innerHTML = `<div class="empty-state"><div class="spinner" style="width:24px;height:24px;border-color:rgba(255,255,255,0.1);border-top-color:#58a6ff;margin:0 auto 12px;"></div><p style="color:var(--muted)">Loading...</p></div>`;
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?action=read', { method: 'GET' });
+    const json = await res.json();
+    const allRows = json.rows || [];
+
+    const filterDate = document.getElementById('filter-date').value;
+    const filterName = document.getElementById('filter-name').value;
+
+    // Filter rows - date is col 1 (DD/MM/YYYY), name is col 2
+    let filtered = allRows.filter(r => {
+      if (!r[2]) return false;
+      // Convert filter date (YYYY-MM-DD) to DD/MM/YYYY for comparison
+      let dateMatch = true;
+      if (filterDate) {
+        const [y,m,d] = filterDate.split('-');
+        const fmtDate = `${d}/${m}/${y}`;
+        dateMatch = r[1] === fmtDate;
+      }
+      const nameMatch = filterName ? r[2] === filterName : true;
+      return dateMatch && nameMatch;
+    });
+
+    // Stats for today
+    const today = new Date();
+    const td = String(today.getDate()).padStart(2,'0');
+    const tm = String(today.getMonth()+1).padStart(2,'0');
+    const ty = today.getFullYear();
+    const todayFmt = `${td}/${tm}/${ty}`;
+    const todayRows = allRows.filter(r => r[1] === todayFmt);
+
+    const presentCount = todayRows.filter(r => r[4] === 'Present').length;
+    const lateCount    = todayRows.filter(r => r[4] === 'Late').length;
+    const absentCount  = Math.max(0, 7 - presentCount - lateCount);
+
+    document.getElementById('s-present').textContent = presentCount;
+    document.getElementById('s-late').textContent    = lateCount;
+    document.getElementById('s-absent').textContent  = absentCount;
+
+    if (!filtered.length) {
+      document.getElementById('att-table').innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>No records for this filter.</p></div>`;
+      return;
+    }
+
+    // Sort newest first
+    filtered = filtered.reverse();
+
+    document.getElementById('att-table').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Staff</th><th>Date</th><th>Time</th><th>Status</th>
+        </tr></thead>
+        <tbody>${filtered.map(r => {
+          const status = r[4] || 'Present';
+          const badgeCls = status === 'Late' ? 'badge-late' : 'badge-present';
+          const initials = r[2] ? r[2].slice(0,2).toUpperCase() : '??';
+          return `<tr>
+            <td>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <div style="width:28px;height:28px;border-radius:8px;background:#238636;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">${initials}</div>
+                <span style="font-weight:600;">${r[2]||'—'}</span>
+              </div>
+            </td>
+            <td style="color:var(--muted);font-size:12px;">${r[1]||'—'}</td>
+            <td style="font-weight:600;color:#58a6ff;">${r[3]||'—'}</td>
+            <td><span class="badge ${badgeCls}">${status}</span></td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table>`;
+
+  } catch(e) {
+    document.getElementById('att-table').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>Could not load. Check sheet access.</p></div>`;
+    console.error(e);
+  }
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  document.getElementById('toast-msg').textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => t.className = '', 3500);
+}
+</script>
+</body>
+</html>
